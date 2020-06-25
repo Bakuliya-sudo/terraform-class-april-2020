@@ -7,7 +7,8 @@ data "aws_ami" "amazon" {
     values = ["available"]
   }
 }
-resource "aws_instance" "r1soft"         {
+resource "aws_instance" "r1soft"        {
+  depends_on = ["aws_efs_file_system.project"]
   instance_type               = "t2.micro"
   ami                         = "${data.aws_ami.amazon.id}"
   key_name                    = "${aws_key_pair.deployer.key_name}"
@@ -36,9 +37,17 @@ resource "aws_instance" "r1soft"         {
       "sudo yum install r1soft-cdp-enterprise-server -y",
       "sudo r1soft-setup --user admin --pass redhat --http-port 8080",
       "sudo /etc/init.d/cdp-server restart",
-    ]
-   }
+      "sudo yum -y install nfs-utils",
+      "sudo service nfs start",
+      "sudo mkdir /var/backups",
+      "sudo chmod 777 /etc/fstab",
+      "sudo echo '${aws_efs_file_system.project.dns_name} /var/backups efs defaults 0 0' >> /etc/fstab"
+      # "sudo mount -t nfs ${aws_efs_file_system.project.dns_name}:/backups /var/backups"
+     ]
+  }
 }
+
+
   resource "aws_key_pair" "deployer" {
   key_name   = "deployer-key"
   public_key = "${file("~/.ssh/id_rsa.pub")}"
